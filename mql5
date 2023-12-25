@@ -1,0 +1,131 @@
+
+//+------------------------------------------------------------------+
+//|                                         Valable ZigZag MT5.mq5   |
+//|                     Copyright © 2022, Forex Robot Easy Team       |
+//|                                      https://forexroboteasy.com   |
+//+------------------------------------------------------------------+
+#property copyright 'Copyright © 2022, Forex Robot Easy Team'
+#property link    'https://forexroboteasy.com'
+
+#property indicator_chart_window
+#property indicator_buffers 1
+#property indicator_plots   1
+
+//--- indicator parameters
+input int    InpDepth=12;       // Depth parameter for fractal calculation
+input double InpDeviation=5.0;  // Deviation parameter for fractal calculation
+input int    InpBackstep=3;     // Backstep parameter for fractal calculation
+input int    InpTimeframe=PERIOD_H4; // Timeframe for determining the trend's direction
+
+double ExtBuffer[];
+int ExtWaves[];
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function                         |
+//+------------------------------------------------------------------+
+int OnInit()
+  {
+//--- indicator buffers mapping
+   SetIndexBuffer(0,ExtBuffer,INDICATOR_DATA);
+   SetIndexStyle(0,DRAW_LINE);
+   SetIndexDrawBegin(0,InpDepth);
+   IndicatorSetString(INDICATOR_SHORTNAME,'Valable ZigZag');
+
+//--- check timeframe
+   if(InpTimeframe != PERIOD_H4)
+     {
+      Print('This indicator should be installed on H4 timeframe');
+      return(INIT_FAILED);
+     }
+
+//--- initialization done
+   return(INIT_SUCCEEDED);
+  }
+
+//+------------------------------------------------------------------+
+//| Custom indicator iteration function                              |
+//+------------------------------------------------------------------+
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime &time[],
+                const double &open[],
+                const double &high[],
+                const double &low[],
+                const double &close[],
+                const long &tick_volume[],
+                const long &volume[],
+                const int &spread[])
+  {
+   int limit=prev_calculated;
+   if(limit<InpDepth) limit=InpDepth;
+   int counted_bars=IndicatorCounted();
+   if(counted_bars<0) return(-1);
+   if(counted_bars>0) counted_bars--;
+   int pos=limit-1;
+
+//--- main loop
+   while(pos<rates_total-1)
+     {
+      int start=pos-InpDepth+1;
+      int end=pos;
+
+      double max_price=High[start];
+      double min_price=Low[start];
+      int max_index=start;
+      int min_index=start;
+
+      for(int i=start+1; i<=end; i++)
+        {
+         if(High[i]>max_price)
+           {
+            max_price=High[i];
+            max_index=i;
+           }
+         if(Low[i]<min_price)
+           {
+            min_price=Low[i];
+            min_index=i;
+           }
+        }
+
+      if(max_index>min_index)
+        {
+         if(max_price-min_price>InpDeviation*Point)
+           {
+            ExtBuffer[max_index]=max_price;
+            ExtBuffer[min_index]=min_price;
+            ExtWaves[max_index]=1;
+            ExtWaves[min_index]=-1;
+           }
+         else
+           {
+            ExtBuffer[max_index]=0.0;
+            ExtBuffer[min_index]=0.0;
+            ExtWaves[max_index]=0;
+            ExtWaves[min_index]=0;
+           }
+        }
+      else
+        {
+         if(max_price-min_price>InpDeviation*Point)
+           {
+            ExtBuffer[min_index]=max_price;
+            ExtBuffer[max_index]=min_price;
+            ExtWaves[min_index]=-1;
+            ExtWaves[max_index]=1;
+           }
+         else
+           {
+            ExtBuffer[min_index]=0.0;
+            ExtBuffer[max_index]=0.0;
+            ExtWaves[min_index]=0;
+            ExtWaves[max_index]=0;
+           }
+        }
+
+      pos++;
+     }
+
+//--- return value of prev_calculated for next call
+   return(rates_total);
+  }
